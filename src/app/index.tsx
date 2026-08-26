@@ -1,98 +1,242 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
+/**
+ * Home route.
+ *
+ * Provides the product entry point and exposes the two global user preferences:
+ * language and appearance.
+ */
+
+import { router } from 'expo-router';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+import { FeatureCard } from '../components/feature-card';
+import { LanguageSwitcher } from '../components/language-switcher';
+import { PrimaryButton } from '../components/primary-button';
+import { ThemeSwitcher } from '../components/theme-switcher';
+import { useAppTheme } from '../hooks/use-app-theme';
+import type { AppTheme } from '../theme';
 
 export default function HomeScreen() {
+  const { t } = useTranslation();
+  const { theme } = useAppTheme();
+  const styles = createStyles(theme);
+
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+    <SafeAreaView
+      style={styles.safeArea}
+      edges={['top', 'left', 'right']}
+    >
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.topBar}>
+          <View style={styles.brandGroup}>
+            <View style={styles.brandMark}>
+              <Text style={styles.brandMarkText}>F</Text>
+            </View>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+            <View>
+              <Text style={styles.brand}>FishSafe</Text>
+              <Text style={styles.brandCaption}>
+                {t('home.brandCaption')}
+              </Text>
+            </View>
+          </View>
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
+          <View style={styles.preferences}>
+            <ThemeSwitcher />
+            <LanguageSwitcher />
+          </View>
+        </View>
+
+        <View style={styles.hero}>
+          <View style={styles.badge}>
+            <View style={styles.badgeDot} />
+            <Text style={styles.badgeText}>
+              {t('home.assistantBadge')}
+            </Text>
+          </View>
+
+          <Text style={styles.title}>
+            {t('home.title')}
+          </Text>
+
+          <Text style={styles.subtitle}>
+            {t('home.subtitle')}
+          </Text>
+
+          <PrimaryButton
+            label={t('home.prepareTrip')}
+            onPress={() =>
+              router.push('/prepare-trip')
+            }
           />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
+        </View>
 
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+        <Text style={styles.sectionTitle}>
+          {t('home.sectionTitle')}
+        </Text>
+
+        <View style={styles.cards}>
+          <FeatureCard
+            eyebrow={t('home.beforeDepartureEyebrow')}
+            title={t('home.beforeDepartureTitle')}
+            description={t(
+              'home.beforeDepartureDescription'
+            )}
+          />
+
+          <FeatureCard
+            eyebrow={t('home.atSeaEyebrow')}
+            title={t('home.atSeaTitle')}
+            description={t(
+              'home.atSeaDescription'
+            )}
+          />
+
+          <FeatureCard
+            eyebrow={t('home.offlineEyebrow')}
+            title={t('home.offlineTitle')}
+            description={t(
+              'home.offlineDescription'
+            )}
+          />
+        </View>
+
+        <View style={styles.notice}>
+          <Text style={styles.noticeTitle}>
+            {t('common.important')}
+          </Text>
+
+          <Text style={styles.noticeText}>
+            {t('home.notice')}
+          </Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
+function createStyles(theme: AppTheme) {
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
+    backgroundColor: theme.colors.background,
   },
-  heroSection: {
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 36,
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 28,
+  },
+  preferences: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  brandGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flexShrink: 1,
+  },
+  brandMark: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: theme.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+  },
+  brandMarkText: {
+    color: theme.colors.white,
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  brand: {
+    color: theme.colors.text,
+    fontSize: 19,
+    fontWeight: '900',
+  },
+  brandCaption: {
+    color: theme.colors.textMuted,
+    marginTop: 1,
+    fontSize: 12,
+  },
+  hero: {
+    borderRadius: theme.radius.lg,
+    backgroundColor: theme.colors.surfaceSoft,
+    padding: 24,
+    marginBottom: 30,
+  },
+  badge: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.colors.primarySoft,
+    marginBottom: 18,
+  },
+  badgeDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 999,
+    backgroundColor: theme.colors.primary,
+  },
+  badgeText: {
+    color: theme.colors.primary,
+    fontSize: 12,
+    fontWeight: '800',
   },
   title: {
-    textAlign: 'center',
+    color: theme.colors.text,
+    fontSize: 32,
+    lineHeight: 38,
+    fontWeight: '900',
+    marginBottom: 14,
   },
-  code: {
-    textTransform: 'uppercase',
+  subtitle: {
+    color: theme.colors.textMuted,
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 22,
   },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  sectionTitle: {
+    color: theme.colors.text,
+    fontSize: 20,
+    fontWeight: '900',
+    marginBottom: 14,
   },
-});
+  cards: {
+    gap: 12,
+  },
+  notice: {
+    marginTop: 22,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    paddingTop: 18,
+  },
+  noticeTitle: {
+    color: theme.colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 5,
+  },
+  noticeText: {
+    color: theme.colors.textMuted,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  });
+}
