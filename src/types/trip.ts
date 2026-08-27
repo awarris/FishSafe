@@ -1,11 +1,14 @@
 /**
  * Trip and risk domain types.
  *
- * UI translations are deliberately excluded from these types. Domain values
- * remain language-neutral and are translated only at the presentation layer.
+ * The risk result is intentionally language-neutral. User-facing labels and
+ * safety messages are translated at the presentation layer.
  */
 
-import type { Coordinates, ForecastBundle } from './forecast';
+import type {
+  Coordinates,
+  ForecastBundle,
+} from './forecast';
 
 export type BoatType =
   | 'canoe'
@@ -30,31 +33,35 @@ export type PreparedTrip = {
   forecast: ForecastBundle;
 };
 
+export type DemoScenario =
+  | 'real'
+  | 'degradation'
+  | 'danger';
+
 export type RiskLevel =
   | 'low'
   | 'moderate'
   | 'high'
-  | 'critical';
+  | 'danger';
 
-export type RiskReasonKey =
-  | 'risk.wind'
-  | 'risk.gusts'
-  | 'risk.waves'
-  | 'risk.swell'
-  | 'risk.duration'
-  | 'risk.boat';
+export type RiskLevelNumber =
+  | 1
+  | 2
+  | 3
+  | 4;
+
+export type RiskMessageKey =
+  | 'risk.messages.low'
+  | 'risk.messages.moderate'
+  | 'risk.messages.high'
+  | 'risk.messages.danger';
 
 export type RiskResult = {
-  score: number;
   level: RiskLevel;
-  isDemo: boolean;
-  reasonKeys: RiskReasonKey[];
-  components: {
-    wind: number;
-    gusts: number;
-    waves: number;
-    swell: number;
-    duration: number;
-    boat: number;
-  };
+  levelNumber: RiskLevelNumber;
+  messageKey: RiskMessageKey;
+  windLevel: RiskLevelNumber;
+  waveLevel: RiskLevelNumber;
+  windSpeedKmh: number;
+  waveHeightM: number;
 };

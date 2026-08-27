@@ -18,6 +18,7 @@ import '../i18n';
 import { useAppTheme } from '../hooks/use-app-theme';
 import { restoreStoredLanguage } from '../i18n';
 import { ThemeProvider } from '../providers/theme-provider';
+import { NetworkProvider } from '../providers/network-provider';
 
 function AppNavigation() {
   const { theme, resolvedMode } =
@@ -74,7 +75,9 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <AppNavigation />
+      <NetworkProvider>
+        <AppNavigation />
+      </NetworkProvider>
     </ThemeProvider>
   );
 }

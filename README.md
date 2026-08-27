@@ -78,35 +78,37 @@ FishSafe calls two Open-Meteo services in parallel.
 
 Used for:
 
-- wind speed at 10 m;
-- wind gusts at 10 m;
-- wind direction at 10 m.
+- wind speed at 10 m.
 
 **Marine API**
 
 Used for:
 
-- wave height;
-- wave period;
-- wave direction;
-- swell height;
-- swell period;
-- swell direction.
+- significant wave height.
 
 The integration is implemented in:
 
 ```text
-src/services/openMeteo.service.ts
+src/services/open-meteo-service.ts
 ```
 
 The service converts the external API responses into FishSafe's internal forecast model and merges Weather and Marine values by hourly timestamp.
+
+
+### Units used by FishSafe
+
+FishSafe explicitly requests `wind_speed_unit=kmh` from Open-Meteo Weather, so `wind_speed_10m` is consumed in **km/h**.
+
+Open-Meteo Marine documents `wave_height` in **metres**, so FishSafe consumes that value directly in metres.
+
+The integration logs the units returned in `hourly_units` and warns when an unexpected unit is received.
 
 ### 3.3 Offline behavior
 
 Once a trip is prepared, the complete normalized forecast is saved locally with AsyncStorage.
 
 ```text
-src/storage/forecast.storage.ts
+src/storage/forecast-storage.ts
 ```
 
 The active trip does not need to call Open-Meteo every time the risk is reevaluated. It can use the forecast downloaded before departure.
@@ -131,44 +133,60 @@ Continue risk evaluation
 
 ### 3.4 Risk engine
 
-Risk logic is deliberately separated from screens, API calls, and storage.
+FishSafe now uses a simple conservative classification grid based on **two variables only**:
+
+- wind speed in **km/h**;
+- significant wave height in **metres**.
+
+There is **no weighted score**.
+
+Wind and waves are classified independently, and the application always keeps the **highest level**.
+
+```text
+Wind level ─┐
+            ├─> highest level ─> final FishSafe risk
+Wave level ─┘
+```
+
+### Risk grid
+
+| Level | Wind | Wave height | Recommendation |
+|---|---|---|---|
+| 1 — Low | `< 20 km/h` | `< 1.0 m` | Favorable conditions |
+| 2 — Moderate | `>= 20 and < 39 km/h` | `>= 1.0 and < 1.5 m` | Stay alert and keep informed |
+| 3 — High | `>= 39 and <= 61 km/h` | `>= 1.5 and <= 2.5 m` | Departure not recommended; use caution if already at sea |
+| 4 — Danger | `> 61 km/h` | `> 2.5 m` | Return recommended / do not depart |
+
+Boundary values are explicit to avoid overlapping ranges. For example:
+
+```text
+wind = 30 km/h  -> level 2
+waves = 1.8 m   -> level 3
+
+final level     -> level 3
+```
+
+The implementation is isolated under:
 
 ```text
 src/risk/
-├── calculateRisk.ts
-└── risk.config.ts
+├── calculate-risk.ts
+└── risk-config.ts
 ```
 
-The engine receives:
-
-- one normalized hourly forecast point;
-- vessel type;
-- planned trip duration.
-
-It returns:
-
-- numeric score;
-- risk level;
-- factors contributing to the result.
-
-Current levels are:
-
-```text
-low
-moderate
-high
-critical
-```
-
-### Important risk-model status
-
-The thresholds currently stored in `risk.config.ts` are **demonstration values**.
-
-They are not official maritime safety thresholds.
-
-The production-oriented design is intentional: once the team validates a credible risk model, the thresholds and formula can be replaced without rewriting the API integration, storage, navigation, localization, or presentation layers.
-
+The vessel type and planned duration remain part of trip preparation, but they **do not currently change the risk level**. Duration is used to determine how much forecast data should be downloaded for the trip window.
 ---
+
+
+## Jury demonstration mode
+
+When the configured **test area at sea** is used, the active-trip screen exposes a clearly labelled jury-demo panel. It never silently replaces real Open-Meteo data.
+
+- **Real forecast** — keeps the downloaded Open-Meteo forecast.
+- **Degradation** — controlled sequence: level 1 → level 2 → level 3 → level 3 → level 4.
+- **Danger** — starts directly with level-4 conditions.
+
+This separation makes the product demonstrable regardless of the weather on presentation day while preserving the real-data workflow.
 
 ## 4. Architecture
 
@@ -311,6 +329,29 @@ These logs are intended to make testing and debugging traceable from start to fi
 - Open-Meteo Marine API
 
 No Open-Meteo API key is currently required by this integration.
+
+---
+
+## Branding assets
+
+FishSafe uses one approved visual identity across the application.
+
+```text
+assets/images/
+├── fishsafe-logo.png
+├── fishsafe-icon.png
+├── fishsafe-android-foreground.png
+├── fishsafe-favicon.png
+└── fishsafe-splash.png
+```
+
+- `fishsafe-logo.png` is used inside the application UI.
+- `fishsafe-icon.png` is the main application icon.
+- `fishsafe-android-foreground.png` is used by Android adaptive icons.
+- `fishsafe-favicon.png` is used by the web build.
+- `fishsafe-splash.png` contains the FishSafe logo, application name, and tagline for the native startup screen.
+
+The source code should reference these centralized assets instead of duplicating branding files.
 
 ---
 
@@ -458,11 +499,11 @@ Current functional scope:
 - Open-Meteo Marine integration;
 - normalized forecast model;
 - offline forecast persistence;
-- demo risk scoring;
+- conservative wind-and-wave risk classification;
 - pre-departure analysis;
 - active-trip simulation;
 - structured logs;
 - French and English UI;
 - light and dark themes.
 
-The next major domain milestone is the replacement of the demonstration risk model with a validated maritime risk model.
+The current risk grid is implemented as the team-provided domain rule. Further field validation and safety review should still be completed before operational deployment.

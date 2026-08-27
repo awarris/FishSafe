@@ -6,7 +6,7 @@
  */
 
 import { router } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
@@ -33,8 +33,13 @@ export default function HomeScreen() {
       >
         <View style={styles.topBar}>
           <View style={styles.brandGroup}>
-            <View style={styles.brandMark}>
-              <Text style={styles.brandMarkText}>F</Text>
+            <View style={styles.brandLogoContainer}>
+              <Image
+                source={require('../../assets/images/fishsafe-logo.png')}
+                style={styles.brandLogo}
+                resizeMode="contain"
+                accessibilityLabel="FishSafe logo"
+              />
             </View>
 
             <View>
@@ -148,18 +153,18 @@ function createStyles(theme: AppTheme) {
     gap: 12,
     flexShrink: 1,
   },
-  brandMark: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: theme.colors.primary,
+  brandLogoContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 15,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
-  brandMarkText: {
-    color: theme.colors.white,
-    fontSize: 20,
-    fontWeight: '900',
+  brandLogo: {
+    width: 46,
+    height: 46,
   },
   brand: {
     color: theme.colors.text,
@@ -174,8 +179,8 @@ function createStyles(theme: AppTheme) {
   hero: {
     borderRadius: theme.radius.lg,
     backgroundColor: theme.colors.surfaceSoft,
-    padding: 24,
-    marginBottom: 30,
+    padding: 22,
+    marginBottom: 24,
   },
   badge: {
     alignSelf: 'flex-start',
@@ -201,8 +206,8 @@ function createStyles(theme: AppTheme) {
   },
   title: {
     color: theme.colors.text,
-    fontSize: 32,
-    lineHeight: 38,
+    fontSize: 36,
+    lineHeight: 42,
     fontWeight: '900',
     marginBottom: 14,
   },

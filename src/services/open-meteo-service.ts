@@ -1,16 +1,15 @@
 /**
  * Open-Meteo integration layer.
  *
- * Responsibilities:
- * - build Weather and Marine API requests;
- * - fetch both datasets in parallel;
- * - normalize and merge hourly values by timestamp;
- * - expose one application-specific ForecastBundle.
+ * FishSafe currently requires only:
+ * - wind speed at 10 metres from the Weather API;
+ * - significant wave height from the Marine API.
  *
- * No UI concerns or risk scoring belong in this service.
+ * Wind is explicitly requested in km/h with `wind_speed_unit=kmh`.
+ * Open-Meteo Marine returns `wave_height` in metres.
  */
 
-import { APP_CONFIG } from '../config/app.config';
+import { APP_CONFIG } from '../config/app-config';
 import type {
   Coordinates,
   ForecastBundle,
@@ -25,7 +24,6 @@ const WEATHER_BASE_URL =
 const MARINE_BASE_URL =
   'https://marine-api.open-meteo.com/v1/marine';
 
-/** Resolve how many hourly forecast points are needed for the trip window. */
 function getForecastHours(
   durationHours: number
 ): number {
@@ -53,7 +51,6 @@ function readNumericValue(
     : null;
 }
 
-/** Fetch and parse JSON while emitting consistent request diagnostics. */
 async function fetchJson<T>(
   url: string,
   module: string
@@ -128,8 +125,7 @@ function buildWeatherUrl(
   const params = new URLSearchParams({
     latitude: String(coordinates.latitude),
     longitude: String(coordinates.longitude),
-    hourly:
-      'wind_speed_10m,wind_gusts_10m,wind_direction_10m',
+    hourly: 'wind_speed_10m',
     wind_speed_unit: 'kmh',
     forecast_hours: String(forecastHours),
     timezone: 'auto',
@@ -146,8 +142,7 @@ function buildMarineUrl(
   const params = new URLSearchParams({
     latitude: String(coordinates.latitude),
     longitude: String(coordinates.longitude),
-    hourly:
-      'wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,swell_wave_direction',
+    hourly: 'wave_height',
     forecast_hours: String(forecastHours),
     timezone: 'auto',
     cell_selection: 'sea',
@@ -156,7 +151,57 @@ function buildMarineUrl(
   return `${MARINE_BASE_URL}?${params.toString()}`;
 }
 
-/** Merge Weather and Marine API data by their shared hourly timestamp. */
+function validateUnits(
+  weather: OpenMeteoHourlyResponse,
+  marine: OpenMeteoHourlyResponse
+): void {
+  const windUnit =
+    weather.hourly_units?.wind_speed_10m;
+
+  const waveUnit =
+    marine.hourly_units?.wave_height;
+
+  logger.info(
+    'OPEN_METEO',
+    'FORECAST_UNITS_RECEIVED',
+    'Open-Meteo response units received.',
+    {
+      windSpeedUnit: windUnit,
+      waveHeightUnit: waveUnit,
+    }
+  );
+
+  if (
+    windUnit &&
+    windUnit !== 'km/h'
+  ) {
+    logger.warn(
+      'OPEN_METEO',
+      'UNEXPECTED_WIND_UNIT',
+      'Unexpected wind-speed unit returned by Open-Meteo.',
+      {
+        expected: 'km/h',
+        actual: windUnit,
+      }
+    );
+  }
+
+  if (
+    waveUnit &&
+    waveUnit !== 'm'
+  ) {
+    logger.warn(
+      'OPEN_METEO',
+      'UNEXPECTED_WAVE_UNIT',
+      'Unexpected wave-height unit returned by Open-Meteo.',
+      {
+        expected: 'm',
+        actual: waveUnit,
+      }
+    );
+  }
+}
+
 function mergeForecasts(
   coordinates: Coordinates,
   weather: OpenMeteoHourlyResponse,
@@ -167,6 +212,8 @@ function mergeForecasts(
     'FORECAST_MERGE_STARTED',
     'Merging weather and marine forecasts.'
   );
+
+  validateUnits(weather, marine);
 
   const weatherTimes =
     weather.hourly?.time ?? [];
@@ -182,83 +229,61 @@ function mergeForecasts(
   });
 
   const points: ForecastPoint[] =
-    weatherTimes.map(
+    weatherTimes.flatMap(
       (time, weatherIndex) => {
         const marineIndex =
           marineIndexByTime.get(time);
 
-        return {
-          time,
-          windSpeedKmh: readNumericValue(
+        if (marineIndex === undefined) {
+          return [];
+        }
+
+        const windSpeedKmh =
+          readNumericValue(
             weather.hourly?.wind_speed_10m,
             weatherIndex
-          ),
-          windGustsKmh: readNumericValue(
-            weather.hourly?.wind_gusts_10m,
-            weatherIndex
-          ),
-          windDirectionDeg: readNumericValue(
-            weather.hourly?.wind_direction_10m,
-            weatherIndex
-          ),
-          waveHeightM:
-            marineIndex === undefined
-              ? null
-              : readNumericValue(
-                  marine.hourly?.wave_height,
-                  marineIndex
-                ),
-          wavePeriodS:
-            marineIndex === undefined
-              ? null
-              : readNumericValue(
-                  marine.hourly?.wave_period,
-                  marineIndex
-                ),
-          waveDirectionDeg:
-            marineIndex === undefined
-              ? null
-              : readNumericValue(
-                  marine.hourly?.wave_direction,
-                  marineIndex
-                ),
-          swellHeightM:
-            marineIndex === undefined
-              ? null
-              : readNumericValue(
-                  marine.hourly?.swell_wave_height,
-                  marineIndex
-                ),
-          swellPeriodS:
-            marineIndex === undefined
-              ? null
-              : readNumericValue(
-                  marine.hourly?.swell_wave_period,
-                  marineIndex
-                ),
-          swellDirectionDeg:
-            marineIndex === undefined
-              ? null
-              : readNumericValue(
-                  marine.hourly?.swell_wave_direction,
-                  marineIndex
-                ),
-        };
+          );
+
+        const waveHeightM =
+          readNumericValue(
+            marine.hourly?.wave_height,
+            marineIndex
+          );
+
+        if (
+          windSpeedKmh === null ||
+          waveHeightM === null
+        ) {
+          logger.warn(
+            'OPEN_METEO',
+            'INCOMPLETE_FORECAST_POINT_SKIPPED',
+            'Skipping hourly point because wind or wave data is missing.',
+            {
+              time,
+              windSpeedKmh,
+              waveHeightM,
+            }
+          );
+
+          return [];
+        }
+
+        return [{
+          time,
+          windSpeedKmh,
+          waveHeightM,
+        }];
       }
     );
 
   if (points.length === 0) {
     throw new Error(
-      'Open-Meteo returned no hourly forecast points.'
+      'Open-Meteo returned no complete wind-and-wave forecast points.'
     );
   }
 
-  const pointsWithMarineData =
-    points.filter(
-      (point) =>
-        point.waveHeightM !== null ||
-        point.swellHeightM !== null
-    ).length;
+  const completePoints =
+    points.length;
 
   logger.info(
     'OPEN_METEO',
@@ -268,7 +293,7 @@ function mergeForecasts(
       weatherPoints: weatherTimes.length,
       marinePoints: marineTimes.length,
       mergedPoints: points.length,
-      pointsWithMarineData,
+      completeRiskPoints: completePoints,
     }
   );
 
@@ -284,7 +309,6 @@ function mergeForecasts(
   };
 }
 
-/** Download, normalize, and combine all forecast data required by FishSafe. */
 export async function getForecastBundle(
   coordinates: Coordinates,
   durationHours: number
@@ -295,7 +319,7 @@ export async function getForecastBundle(
   logger.info(
     'OPEN_METEO',
     'FORECAST_REQUEST_STARTED',
-    'Preparing combined weather and marine forecast request.',
+    'Preparing wind and wave forecast requests.',
     {
       coordinates,
       durationHours,
@@ -337,7 +361,7 @@ export async function getForecastBundle(
   logger.info(
     'OPEN_METEO',
     'FORECAST_REQUEST_COMPLETED',
-    'Combined forecast is ready.',
+    'Combined wind and wave forecast is ready.',
     {
       timezone: bundle.timezone,
       pointCount: bundle.points.length,

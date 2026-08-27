@@ -15,6 +15,14 @@ export type AppTheme = {
     warningBorder: string;
     warningText: string;
     neutralSurface: string;
+    riskLow: string;
+    riskLowSurface: string;
+    riskModerate: string;
+    riskModerateSurface: string;
+    riskHigh: string;
+    riskHighSurface: string;
+    riskDanger: string;
+    riskDangerSurface: string;
   };
   radius: {
     sm: number;
@@ -48,6 +56,14 @@ export const lightTheme: AppTheme = {
     warningBorder: '#E8D7AA',
     warningText: '#76520D',
     neutralSurface: '#F2F3F5',
+    riskLow: '#238636',
+    riskLowSurface: '#EAF7ED',
+    riskModerate: '#9A6B00',
+    riskModerateSurface: '#FFF6D8',
+    riskHigh: '#C45A00',
+    riskHighSurface: '#FFF0E3',
+    riskDanger: '#B42318',
+    riskDangerSurface: '#FDECEC',
   },
   radius,
 };
@@ -69,6 +85,14 @@ export const darkTheme: AppTheme = {
     warningBorder: '#5B4922',
     warningText: '#E9C873',
     neutralSurface: '#202725',
+    riskLow: '#67C47A',
+    riskLowSurface: '#193321',
+    riskModerate: '#F0C95C',
+    riskModerateSurface: '#352E17',
+    riskHigh: '#F39A52',
+    riskHighSurface: '#3A2618',
+    riskDanger: '#F08078',
+    riskDangerSurface: '#3A1D1B',
   },
   radius,
 };
