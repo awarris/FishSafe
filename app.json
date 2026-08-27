@@ -15,7 +15,8 @@
         "backgroundColor": "#F7FAF9",
         "foregroundImage": "./assets/images/fishsafe-android-foreground.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.warrischitou1.fishsafe"
     },
     "web": {
       "output": "static",
@@ -35,6 +36,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "090fcbd7-0669-4ae5-b5dc-8794dcb264b3"
+      }
+    },
+    "owner": "warris-chitou-1"
   }
 }
